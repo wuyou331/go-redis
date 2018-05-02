@@ -5,21 +5,23 @@ import (
 	"fmt"
 	"strings"
 	"bufio"
+	"log"
+	"strconv"
 )
 
-type redisClient struct {
+type client struct {
 	conn net.Conn
 	writer *bufio.Writer
 	reader *bufio.Reader
 }
-type RedisClient interface{
+type Client interface{
 	Close()
 	Send(cmd string)
 }
 
 //New 根据Ip地址和端口创建一个RedisClient
-func New(ipAndPort string) (RedisClient,error){
-	client := redisClient{}
+func NewClient(ipAndPort string) (Client,error){
+	client := client{}
 	conn, err := net.Dial("tcp", ipAndPort)
 
 	client.conn=conn
@@ -29,7 +31,7 @@ func New(ipAndPort string) (RedisClient,error){
 	return  &client,err
 }
 
-func (client *redisClient) Send(cmd string) {
+func (client *client) Send(cmd string) {
 	var cmdArr []string
 	//移除空白的项目
 	for _, input := range strings.Split(cmd, " ") {
@@ -41,10 +43,42 @@ func (client *redisClient) Send(cmd string) {
 	client.writer.WriteString(cmd)
 	client.writer.Flush()
 
+	line, err := client.reader.ReadBytes('\n')
+	if err != nil {
+		log.Panic(err)
+	}
 
+	cmdType := line[0]
+	switch cmdType {
+	case '+':
+	case ':':
+		msg := strings.Trim(string(line[1:]), "\r\n")
+		fmt.Println(msg)
+		break
+	case '-':
+		msg := strings.Trim(string(line[1:]), "\r\n")
+		log.Print(msg)
+		break
+	case '$':
+		msgLength, _ := strconv.Atoi(strings.Trim(string(line[1:]), "\r\n"))
+		if msgLength == -1 {
+			fmt.Println("nil")
+		} else {
+			block, err := client.reader.Peek(msgLength)
+			if err != nil {
+				log.Panic(err)
+			}
+			client.reader.Discard(msgLength +len([]byte("\r\n")))
+			msg := string(block)
+			fmt.Println(msg)
+		}
+		break
+	default:
+		break
+	}
 }
 
-func (client *redisClient) Close() {
+func (client *client) Close() {
 	client.conn.Close()
 }
 
