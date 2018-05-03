@@ -9,8 +9,6 @@ import (
 	"strings"
 )
 
-//退出控制变量
-var exit = false
 
 func main() {
 	fmt.Println("客户端启动...")
@@ -22,10 +20,10 @@ func main() {
 	defer client.Close()
 
 	consoleReader := bufio.NewScanner(os.Stdin)
-	for !exit && consoleReader.Scan() {
+	for  consoleReader.Scan() {
 		cmd := consoleReader.Text()
 		if strings.ToLower(cmd) == "exit" {
-			exit = true
+			break
 		} else {
 			reply := client.Send(consoleReader.Text())
 			printReply(reply)
